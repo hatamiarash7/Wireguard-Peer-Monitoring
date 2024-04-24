@@ -4,9 +4,9 @@ import sys
 
 from loguru import logger as log
 
-from monitoring import utils
+from monitoring import CONFIG, utils
 
-WG_LOG_PATTERN = re.compile(r"wg-home: (.*)$")
+WG_LOG_PATTERN = re.compile(rf"{CONFIG.get('wireguard', 'interface')}: (.*)$")
 message_pattern = re.compile(
     r"Receiving handshake [a-z]* from peer (\d) \((.*):(.*)\)$"
 )
@@ -14,14 +14,17 @@ message_pattern = re.compile(
 UDP_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
-def _signal_handler(sig, _):  # noqa: E999
+def _signal_handler(sig, _):
     print("Received signal {}, closing socket...".format(sig))
     UDP_SOCKET.close()
     sys.exit(0)
 
 
 def main() -> None:
-    log.info("[APP] Starting Wireguard Peer Monitoring")
+    log.info(
+        "[APP] Starting Wireguard Peer Monitoring",
+        Server=CONFIG.get("wireguard", "interface"),
+    )
 
     UDP_SOCKET.bind(
         (
