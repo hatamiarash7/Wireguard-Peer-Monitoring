@@ -1,0 +1,34 @@
+[tool.poetry]
+authors = ["Arash Hatami <hatamiarash7@gmail.com>"]
+description = "Monitor Wireguard peers using kernel events"
+license = "MIT"
+name = "wireguard-peer-monitoring"
+packages = [{include = "monitoring"}]
+readme = "README.md"
+version = "0.1.0"
+
+[tool.poetry.dependencies]
+loguru = "^0.7.2"
+python = "^3.10"
+
+[tool.poetry.group.test.dependencies]
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.6"
+
+[tool.poetry.group.dev.dependencies]
+black = "^24.2.0"
+isort = "^5.13.2"
+pylint = "^3.0.0"
+pytest = "^8.0.0"
+pytest-asyncio = "^0.23.6"
+
+[tool.poetry.urls]
+"Bug Tracker" = "https://github.com/hatamiarash7/wireguard-peer-monitoring/issues"
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[build-system]
+build-backend = "poetry.core.masonry.api"
+requires = ["poetry-core"]

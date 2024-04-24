@@ -1,0 +1,10 @@
+.venv
+.vscode
+.idea
+.git*
+*.pyc
+*.log
+.env
+maria*.cnf
+proc
+node_modules

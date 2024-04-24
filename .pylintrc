@@ -1,0 +1,18 @@
+[MESSAGES CONTROL]
+disable=broad-exception-caught,
+    too-few-public-methods,
+    unused-argument,
+    eval-used,
+    too-many-instance-attributes,
+    line-too-long,
+    chained-comparison,
+    too-many-locals,
+    too-many-branches,
+    duplicate-code,
+    too-many-arguments,
+    no-member,
+    imported-auth-user,
+
+[MASTER]
+ignore-patterns=test.*?py,
+    \d{4}_.*?.py
