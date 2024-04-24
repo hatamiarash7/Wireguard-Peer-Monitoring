@@ -5,7 +5,7 @@ import sys
 
 from loguru import logger as log
 
-from monitoring import utils
+from monitoring import config, utils
 
 __app_name__ = "wireguard-peer-monitoring"
 __description__ = "Monitor Wireguard peers using kernel events."
@@ -21,3 +21,6 @@ log.add(
     colorize=True if utils.get_env("ENV", "local") == "local" else False,
     format=utils.log_formatter,
 )
+
+CONFIG = config.ConfigManager(utils.get_env("CONFIG_FILE", "/app/config.toml"))
+CONFIG.load()
