@@ -43,8 +43,8 @@ def main() -> None:
 
                 msg_match = message_pattern.search(message)
                 if msg_match:
-                    print(
-                        f"Peer {msg_match.group(1)} = {msg_match.group(2)} : {msg_match.group(3)}"
+                    log.info(
+                        f"[WG] Peer {msg_match.group(1)} = {msg_match.group(2)} : {msg_match.group(3)}"
                     )
         except Exception as e:
             log.error("[UDP] Error processing data:", e)
