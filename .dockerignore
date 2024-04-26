@@ -1,10 +1,8 @@
 .venv
 .vscode
-.idea
 .git*
 *.pyc
-*.log
-.env
-maria*.cnf
-proc
-node_modules
+Makefile
+README.md
+.pylintrc
+.flake8
