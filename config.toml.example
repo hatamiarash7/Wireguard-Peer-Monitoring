@@ -1,3 +1,9 @@
+[app]
+# Host to bind the UDP server
+host = "0.0.0.0"
+# Port to bind the UDP server
+port = 9995
+
 [wireguard]
 # Wireguard interface name. This will be used to capture specific logs from kernel.
 interface = "wg-server"

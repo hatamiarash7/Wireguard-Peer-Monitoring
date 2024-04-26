@@ -22,18 +22,18 @@ def _signal_handler(sig, _) -> None:
 def main() -> None:
     """Main function"""
 
+    UDP_HOST = utils.get_env("UDP_HOST", CONFIG.get("app", "host"))
+    UDP_PORT = utils.get_env("UDP_PORT", CONFIG.get("app", "port"))
+
     log.info(
-        "[APP] Starting Wireguard Peer Monitoring",
-        Server=CONFIG.get("wireguard", "interface"),
+        "[APP] Starting app",
+        Interface=CONFIG.get("wireguard", "interface"),
         Version=__version__,
+        Host=UDP_HOST,
+        PORT=UDP_PORT,
     )
 
-    UDP_SOCKET.bind(
-        (
-            utils.get_env("UDP_IP", "0.0.0.0"),
-            utils.get_env("UDP_PORT", 9999),
-        )
-    )
+    UDP_SOCKET.bind((UDP_HOST, UDP_PORT))
 
     while True:
         data, _ = UDP_SOCKET.recvfrom(1024)
