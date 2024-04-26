@@ -1,7 +1,5 @@
 import re
 
-from loguru import logger as log
-
 from monitoring import CONFIG, action
 
 # All kernel messages with the Wireguard's interface name
@@ -16,6 +14,14 @@ EVENTS = [
         ),
         "action": "_check_peer",
     },
+    {
+        # Keepalive messages
+        "name": "Keepalive",
+        "pattern": re.compile(
+            r"Receiving keepalive packet from peer (\d) \((.*):(.*)\)$"
+        ),
+        "action": "_keepalive",
+    },
 ]
 
 
@@ -25,7 +31,6 @@ def parse(data: str):
         message = wg_match.group(1)
 
         for event in EVENTS:
-            log.debug(f"[WG] New event: {event['name']}")
             result = event["pattern"].search(message)
             if result:
-                getattr(action, event["action"])(result)
+                getattr(action, event["action"])(event["name"], result)
