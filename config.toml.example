@@ -1,0 +1,12 @@
+[wireguard]
+interface = "wg-server"
+
+[redis]
+db = 3
+host = "localhost"
+password = ""
+port = 6379
+username = "default"
+
+[manager]
+url = ""
