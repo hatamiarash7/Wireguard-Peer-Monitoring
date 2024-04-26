@@ -38,7 +38,7 @@ class Redis:
         ):
             data["ip"] = ip
             data["port"] = port
-            log.debug(f"[WG] Endpoint's information changed for {id} = {ip} : {port}")
+            log.warn(f"[WG] Endpoint's information changed for {id} = {ip} : {port}")
 
         self.redis_client.hmset(f"wireguard_peer:{id}", data)
 
