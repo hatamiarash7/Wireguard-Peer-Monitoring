@@ -7,12 +7,14 @@ from loguru import logger as log
 class Redis:
     def __init__(
         self,
+        notifier,
         host: str,
         port: int,
         db: int,
         password: str,
         username: str = "default",
     ):
+        self.notifier = notifier
         self.redis_client = redis.StrictRedis(
             host=host,
             port=port,
@@ -38,7 +40,13 @@ class Redis:
         ):
             data["ip"] = ip
             data["port"] = port
-            log.warn(f"[WG] Endpoint's information changed for {id} = {ip} : {port}")
+            log.warning(f"[WG] Endpoint's information changed for {id} = {ip} : {port}")
+            self.notifier.add_job(
+                {
+                    "webhook_url": "https://webhook.arash-hatami.ir/bf4aa44f-ce8d-40b4-929f-a53536e20479",
+                    "payload": {"data": "example"},
+                }
+            )
 
         self.redis_client.hmset(f"wireguard_peer:{id}", data)
 

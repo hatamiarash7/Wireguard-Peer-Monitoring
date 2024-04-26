@@ -22,16 +22,20 @@ log.add(
     format=utils.log_formatter,
 )
 
+# Configure config manager
 CONFIG = config.ConfigManager(utils.get_env("CONFIG_FILE", "/app/config.toml"))
 CONFIG.load()
 
+# Configure job manager
+NOTIFIER = notifier.JobManager()
+NOTIFIER.start()
+
+# Configure Redis
 REDIS = redis_handler.Redis(
+    notifier=NOTIFIER,
     host=CONFIG.get("redis", "host"),
     port=CONFIG.get("redis", "port"),
     db=CONFIG.get("redis", "db"),
     username=CONFIG.get("redis", "username"),
     password=CONFIG.get("redis", "password"),
 )
-
-NOTIFIER = notifier.JobManager()
-NOTIFIER.start()
