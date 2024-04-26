@@ -1,3 +1,5 @@
+"""Main module"""
+
 import socket
 import sys
 
@@ -8,7 +10,9 @@ from monitoring import CONFIG, NOTIFIER, handler, utils
 UDP_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
-def _signal_handler(sig, _):
+def _signal_handler(sig, _) -> None:
+    """OS signal handler"""
+
     log.info(f"[APP] Received signal {sig}, Exit ...")
     UDP_SOCKET.close()
     NOTIFIER.stop()
@@ -16,6 +20,8 @@ def _signal_handler(sig, _):
 
 
 def main() -> None:
+    """Main function"""
+
     log.info(
         "[APP] Starting Wireguard Peer Monitoring",
         Server=CONFIG.get("wireguard", "interface"),

@@ -1,3 +1,5 @@
+"""Top-level runner"""
+
 import signal
 
 from loguru import logger as log
