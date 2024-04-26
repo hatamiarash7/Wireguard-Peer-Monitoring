@@ -1,6 +1,6 @@
 # Wireguard Peer Monitoring
 
-[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/) [![GitHub release](https://img.shields.io/github/release/hatamiarash7/Wireguard-Peer-Monitoring.svg)](https://GitHub.com/hatamiarash7/Wireguard-Peer-Monitoring/releases/) [![Release](https://github.com/hatamiarash7/Wireguard-Peer-Monitoring/actions/workflows/release.yml/badge.svg)](https://github.com/hatamiarash7/Wireguard-Peer-Monitoring/actions/workflows/release.yml) ![GitHub](https://img.shields.io/github/license/hatamiarash7/Wireguard-Peer-Monitoring)
+[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/) [![GitHub release](https://img.shields.io/github/release/hatamiarash7/Wireguard-Peer-Monitoring.svg)](https://GitHub.com/hatamiarash7/Wireguard-Peer-Monitoring/releases/) [![Release](https://github.com/hatamiarash7/Wireguard-Peer-Monitoring/actions/workflows/release.yml/badge.svg)](https://github.com/hatamiarash7/Wireguard-Peer-Monitoring/actions/workflows/release.yml) ![GitHub](https://img.shields.io/github/license/hatamiarash7/wireguard-peer-monitoring)
 
 This project uses [Linux kernel dynamic debug](https://www.kernel.org/doc/html/latest/admin-guide/dynamic-debug-howto.html) features to capture and process Wireguard events and monitor peer activity.
 
