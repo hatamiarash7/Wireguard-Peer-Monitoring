@@ -9,7 +9,7 @@ from monitoring import config, notifier, redis_handler, utils
 
 __app_name__ = "wireguard-peer-monitoring"
 __description__ = "Monitor Wireguard peers using kernel events."
-__version__ = importlib.metadata.version(__app_name__)
+__version__ = f"v{importlib.metadata.version(__app_name__)}"
 __author__ = "Arash Hatami <info@arash-hatami.ir>"
 __epilog__ = "Made with :heart:  in [green]Iran[/green]"
 

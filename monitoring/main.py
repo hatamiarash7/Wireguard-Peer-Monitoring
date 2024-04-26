@@ -5,7 +5,7 @@ import sys
 
 from loguru import logger as log
 
-from monitoring import CONFIG, NOTIFIER, handler, utils
+from monitoring import CONFIG, NOTIFIER, __version__, handler, utils
 
 UDP_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
@@ -25,6 +25,7 @@ def main() -> None:
     log.info(
         "[APP] Starting Wireguard Peer Monitoring",
         Server=CONFIG.get("wireguard", "interface"),
+        Version=__version__,
     )
 
     UDP_SOCKET.bind(
