@@ -11,6 +11,7 @@ version = "0.1.0"
 loguru = "^0.7.2"
 python = "^3.10"
 toml = "^0.10.2"
+redis = "^5.0.4"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.0.0"
