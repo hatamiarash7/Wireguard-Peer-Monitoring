@@ -5,7 +5,7 @@ import sys
 
 from loguru import logger as log
 
-from monitoring import config, utils
+from monitoring import config, redis_handler, utils
 
 __app_name__ = "wireguard-peer-monitoring"
 __description__ = "Monitor Wireguard peers using kernel events."
@@ -24,3 +24,11 @@ log.add(
 
 CONFIG = config.ConfigManager(utils.get_env("CONFIG_FILE", "/app/config.toml"))
 CONFIG.load()
+
+REDIS = redis_handler.Redis(
+    host=CONFIG.get("redis", "host"),
+    port=CONFIG.get("redis", "port"),
+    db=CONFIG.get("redis", "db"),
+    username=CONFIG.get("redis", "username"),
+    password=CONFIG.get("redis", "password"),
+)
