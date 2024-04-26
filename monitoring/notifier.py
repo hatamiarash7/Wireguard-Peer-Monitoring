@@ -14,11 +14,11 @@ class JobManager:
         self.job_queue.put(job_data)
 
     def process_job(self, job_data):
-        webhook_url = job_data["webhook_url"]
+        url = job_data["url"]
         payload = job_data["payload"]
 
         try:
-            response = httpx.post(webhook_url, json=payload)
+            response = httpx.post(url, json=payload)
             response.raise_for_status()  # Raise an exception for 4xx or 5xx status codes
         except httpx.RequestError as e:
             log.error(f"[NOTIFIER] Call failed for job: {job_data}", Error=e)

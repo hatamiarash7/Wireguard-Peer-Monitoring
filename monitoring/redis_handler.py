@@ -43,7 +43,7 @@ class Redis:
             log.warning(f"[WG] Endpoint's information changed for {id} = {ip} : {port}")
             self.notifier.add_job(
                 {
-                    "webhook_url": "https://webhook.arash-hatami.ir/bf4aa44f-ce8d-40b4-929f-a53536e20479",
+                    "url": "https://webhook.arash-hatami.ir/bf4aa44f-ce8d-40b4-929f-a53536e20479",
                     "payload": {"data": "example"},
                 }
             )
