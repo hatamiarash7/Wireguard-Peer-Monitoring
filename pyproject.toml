@@ -5,7 +5,7 @@ license = "MIT"
 name = "wireguard-peer-monitoring"
 packages = [{include = "monitoring"}]
 readme = "README.md"
-version = "0.1.0"
+version = "1.1.0"
 
 [tool.poetry.dependencies]
 httpx = "^0.27.0"
