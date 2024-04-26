@@ -1,17 +1,7 @@
 [MESSAGES CONTROL]
-disable=broad-exception-caught,
-    too-few-public-methods,
-    unused-argument,
-    eval-used,
-    too-many-instance-attributes,
-    line-too-long,
-    chained-comparison,
-    too-many-locals,
-    too-many-branches,
-    duplicate-code,
+disable=protected-access,
     too-many-arguments,
-    no-member,
-    imported-auth-user,
+    line-too-long
 
 [MASTER]
 ignore-patterns=test.*?py,

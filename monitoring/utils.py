@@ -1,3 +1,5 @@
+"""Utility module"""
+
 import os
 
 

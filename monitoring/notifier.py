@@ -51,7 +51,7 @@ class JobManager:
         retry_limit = 3
         retry_count = 0
         while retry_count < retry_limit:
-            log.info(f"[NOTIFIER] Retrying job {job_data}", Attempt=(retry_count + 1))
+            log.info(f"[NOTIFIER] Retrying job {job_data}", Attempt=retry_count + 1)
             self.process_job(job_data)
             retry_count += 1
 

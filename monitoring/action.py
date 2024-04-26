@@ -16,7 +16,7 @@ def check_peer(event: str, result: Match[str] | None) -> None:
     """
 
     REDIS.save_peer(
-        id=result.group(1),
+        peer_id=result.group(1),
         ip=result.group(2),
         port=result.group(3),
     )
@@ -33,7 +33,7 @@ def keepalive(event: str, result: Match[str] | None) -> None:
         result (Match[str] | None): Parsed event from kernel
     """
 
-    REDIS.save_keepalive(id=result.group(1))
+    REDIS.save_keepalive(peer_id=result.group(1))
     log.debug(
         f"[WG] {event}: Peer {result.group(1)} = {result.group(2)} : {result.group(3)}"
     )

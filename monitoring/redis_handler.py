@@ -31,21 +31,21 @@ class Redis:
 
     def save_peer(
         self,
-        id: str,
+        peer_id: str,
         ip: str,
         port: str,
     ) -> None:
         """This function will save peer's information in Redis.
 
         Args:
-            id (str): Peer's ID
+            peer_id (str): Peer's ID
             ip (str): Peer's IP
             port (str): Peer's port
         """
 
         data = {"handshake": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}
         # Check if IP and port have changed
-        existing_peer = self.get_peer(id)
+        existing_peer = self.get_peer(peer_id)
         if not (
             existing_peer
             and existing_peer.get(b"ip") == ip.encode()
@@ -53,7 +53,9 @@ class Redis:
         ):
             data["ip"] = ip
             data["port"] = port
-            log.warning(f"[WG] Endpoint's information changed for {id} = {ip} : {port}")
+            log.warning(
+                f"[WG] Endpoint's information changed for {peer_id} = {ip} : {port}"
+            )
             self.notifier.add_job(
                 {
                     "url": "https://webhook.arash-hatami.ir/bf4aa44f-ce8d-40b4-929f-a53536e20479",
@@ -61,26 +63,26 @@ class Redis:
                 }
             )
 
-        self.redis_client.hmset(f"wireguard_peer:{id}", data)
+        self.redis_client.hmset(f"wireguard_peer:{peer_id}", data)
 
-    def get_peer(self, id: str) -> Union[Awaitable[dict], dict]:
+    def get_peer(self, peer_id: str) -> Union[Awaitable[dict], dict]:
         """This function will get peer's information from Redis.
 
         Args:
-            id (str): Peer's ID
+            peer_id (str): Peer's ID
 
         Returns:
             Union[Awaitable[dict], dict]: Peer's information
         """
 
-        return self.redis_client.hgetall(f"wireguard_peer:{id}")
+        return self.redis_client.hgetall(f"wireguard_peer:{peer_id}")
 
-    def save_keepalive(self, id: str) -> None:
+    def save_keepalive(self, peer_id: str) -> None:
         """Update keepalive timestamp in Redis.
 
         Args:
-            id (str): Peer's ID
+            peer_id (str): Peer's ID
         """
 
         data = {"keepalive": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")}
-        self.redis_client.hmset(f"wireguard_peer:{id}", data)
+        self.redis_client.hmset(f"wireguard_peer:{peer_id}", data)

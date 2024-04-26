@@ -18,7 +18,7 @@ log.remove(0)
 log.add(
     sink=sys.stdout,
     level=utils.get_env("LOG_LEVEL", "INFO"),
-    colorize=True if utils.get_env("ENV", "local") == "local" else False,
+    colorize=utils.get_env("ENV", "local") == "local",
     format=utils.log_formatter,
 )
 
