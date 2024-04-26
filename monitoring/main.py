@@ -3,14 +3,15 @@ import sys
 
 from loguru import logger as log
 
-from monitoring import CONFIG, handler, utils
+from monitoring import CONFIG, NOTIFIER, handler, utils
 
 UDP_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 
 
 def _signal_handler(sig, _):
-    print("Received signal {}, closing socket...".format(sig))
+    log.info(f"[APP] Received signal {sig}, Exit ...")
     UDP_SOCKET.close()
+    NOTIFIER.stop()
     sys.exit(0)
 
 

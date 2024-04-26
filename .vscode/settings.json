@@ -3,6 +3,7 @@
         "DGRAM",
         "hgetall",
         "hmset",
+        "httpx",
         "Keypair",
         "kref",
         "netns",

@@ -5,7 +5,7 @@ import sys
 
 from loguru import logger as log
 
-from monitoring import config, redis_handler, utils
+from monitoring import config, notifier, redis_handler, utils
 
 __app_name__ = "wireguard-peer-monitoring"
 __description__ = "Monitor Wireguard peers using kernel events."
@@ -32,3 +32,6 @@ REDIS = redis_handler.Redis(
     username=CONFIG.get("redis", "username"),
     password=CONFIG.get("redis", "password"),
 )
+
+NOTIFIER = notifier.JobManager()
+NOTIFIER.start()
