@@ -164,7 +164,4 @@ cython_debug/
 
 # Other
 
-cache/
-proc/
-flower.db*
-maria*.cnf
+config.toml
