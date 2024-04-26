@@ -1,7 +1,9 @@
 [wireguard]
+# Wireguard interface name. This will be used to capture specific logs from kernel.
 interface = "wg-server"
 
 [redis]
+# Redis configuration
 db = 3
 host = "localhost"
 password = ""
@@ -9,4 +11,5 @@ port = 6379
 username = "default"
 
 [manager]
+# Wireguard manager webhook's URL
 url = ""

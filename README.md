@@ -4,6 +4,17 @@ This project uses [Linux kernel dynamic debug](https://www.kernel.org/doc/html/l
 
 This assumes that `debugfs` is mounted under `/sys/kernel/debug`.
 
+The main purpose of this project is monitor Wireguard peers. Currently, It can be used to detect and handle `handshake` and `keepalive` events (You can handle more events, check [Events](#events) section).
+
+All peer's information will be stored in Redis for further analysis. Also, notify the user when a peer's endpoint (IP, PORT) is updated.
+
+These data will be stored in Redis for each peer:
+
+- Endpoint's IP
+- Endpoint's Port
+- Last keepalive time
+- Last handshake time
+
 ## How to
 
 1. First, you need to enable Wireguard debug logs. You can do this by running the following command:
@@ -18,7 +29,27 @@ This assumes that `debugfs` is mounted under `/sys/kernel/debug`.
     kern.*  @127.0.0.1:9999
     ```
 
+3. Create a new config file and fill it will proper data:
+
+    ```bash
+    cp config.example.toml config.toml
+    ```
+
+4. Run project to capture and handle events:
+
+    ```bash
+    CONFIG_FILE="config.toml" make run
+    ```
+
+    Or using Docker
+
+    ```bash
+    docker run -d -v $(pwd)/config.toml:/app/config.toml hatamiarash7/wg-peer-monitoring:latest
+    ```
+
 ## Events
+
+There are many Wireguard events that can be captured. You can update the code to handle more events. Here are some of them:
 
 - wg_cookie_message_consume: `Could not decrypt invalid cookie response`
 - send4: `No route to <IP:PORT>, error <ERROR CODE>`
@@ -54,3 +85,25 @@ This assumes that `debugfs` is mounted under `/sys/kernel/debug`.
 - wg_netns_pre_exit: `Creating namespace exiting`
 - keypair_free_kref: `Keypair <PEER ID> destroyed for peer <PEER ID>`
 - wg_noise_handshake_begin_session: `Keypair <PEER ID> created for peer <PEER ID>`
+
+---
+
+## Support 💛
+
+[![Donate with Bitcoin](https://img.shields.io/badge/Bitcoin-bc1qmmh6vt366yzjt3grjxjjqynrrxs3frun8gnxrz-orange)](https://donatebadges.ir/donate/Bitcoin/bc1qmmh6vt366yzjt3grjxjjqynrrxs3frun8gnxrz) [![Donate with Ethereum](https://img.shields.io/badge/Ethereum-0x0831bD72Ea8904B38Be9D6185Da2f930d6078094-blueviolet)](https://donatebadges.ir/donate/Ethereum/0x0831bD72Ea8904B38Be9D6185Da2f930d6078094)
+
+<div><a href="https://payping.ir/@hatamiarash7"><img src="https://cdn.payping.ir/statics/Payping-logo/Trust/blue.svg" height="128" width="128"></a></div>
+
+## Contributing 🤝
+
+Don't be shy and reach out to us if you want to contribute 😉
+
+1. Fork it!
+2. Create your feature branch: `git checkout -b my-new-feature`
+3. Commit your changes: `git commit -am 'Add some feature'`
+4. Push to the branch: `git push origin my-new-feature`
+5. Submit a pull request
+
+## Issues
+
+Each project may have many problems. Contributing to the better development of this project by reporting them. 👍

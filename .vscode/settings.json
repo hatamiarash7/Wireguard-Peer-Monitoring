@@ -1,6 +1,7 @@
 {
     "cSpell.words": [
         "automerge",
+        "debugfs",
         "DGRAM",
         "hgetall",
         "hmset",
@@ -9,6 +10,7 @@
         "kref",
         "netns",
         "newlink",
+        "rsyslog",
         "xmit"
     ]
 }
