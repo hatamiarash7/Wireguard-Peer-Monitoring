@@ -32,6 +32,7 @@ NOTIFIER.start()
 
 # Configure Redis
 REDIS = redis_handler.Redis(
+    config=CONFIG,
     notifier=NOTIFIER,
     host=CONFIG.get("redis", "host"),
     port=CONFIG.get("redis", "port"),

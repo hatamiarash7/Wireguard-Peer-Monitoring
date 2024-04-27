@@ -12,6 +12,7 @@ class Redis:
 
     def __init__(
         self,
+        config,
         notifier,
         host: str,
         port: int,
@@ -19,6 +20,7 @@ class Redis:
         password: str,
         username: str = "default",
     ):
+        self.config = config
         self.notifier = notifier
         self.redis_client = redis.StrictRedis(
             host=host,
@@ -58,8 +60,8 @@ class Redis:
             )
             self.notifier.add_job(
                 {
-                    "url": "https://webhook.arash-hatami.ir/bf4aa44f-ce8d-40b4-929f-a53536e20479",
-                    "payload": {"data": "example"},
+                    "url": self.config.get("manager", "url"),
+                    "payload": {"peer": f"{ip}:{port}"},
                 }
             )
 

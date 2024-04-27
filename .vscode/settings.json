@@ -8,6 +8,7 @@
         "httpx",
         "Keypair",
         "kref",
+        "labelnames",
         "netns",
         "newlink",
         "rsyslog",
