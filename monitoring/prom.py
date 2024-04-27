@@ -1,3 +1,5 @@
+"""Prometheus module"""
+
 from prometheus_client import Counter, Info
 
 NS = "wg_peer_monitoring"

@@ -36,30 +36,30 @@ def main() -> None:
     """Main function"""
     global METRICS_SERVER, METRICS_THREAD
 
-    UDP_HOST = utils.get_env("UDP_HOST", CONFIG.get("app", "host"))
-    UDP_PORT = utils.get_env("UDP_PORT", CONFIG.get("app", "port"))
+    udp_host = utils.get_env("UDP_HOST", CONFIG.get("app", "host"))
+    udp_port = utils.get_env("UDP_PORT", CONFIG.get("app", "port"))
 
     log.info(
         "[APP] Starting app",
         Interface=CONFIG.get("wireguard", "interface"),
         Version=__version__,
-        Host=UDP_HOST,
-        PORT=UDP_PORT,
+        Host=udp_host,
+        PORT=udp_port,
     )
 
-    UDP_SOCKET.bind((UDP_HOST, UDP_PORT))
+    UDP_SOCKET.bind((udp_host, udp_port))
 
-    METRICS_HOST = utils.get_env("METRICS_HOST", CONFIG.get("app", "metrics_host"))
-    METRICS_PORT = utils.get_env("METRICS_PORT", CONFIG.get("app", "metrics_port"))
+    metrics_host = utils.get_env("METRICS_HOST", CONFIG.get("app", "metrics_host"))
+    metrics_port = utils.get_env("METRICS_PORT", CONFIG.get("app", "metrics_port"))
 
     log.info(
         "[APP] Starting metrics",
-        Host=METRICS_HOST,
-        Port=METRICS_PORT,
+        Host=metrics_host,
+        Port=metrics_port,
     )
     METRICS_SERVER, METRICS_THREAD = prometheus_server(
-        addr=METRICS_HOST,
-        port=METRICS_PORT,
+        addr=metrics_host,
+        port=metrics_port,
     )
     prom.APP_INFO.info({"version": __version__})
 
