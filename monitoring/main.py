@@ -4,6 +4,7 @@ import socket
 import sys
 
 from loguru import logger as log
+from prometheus_client import start_http_server as prometheus_server
 
 from monitoring import CONFIG, NOTIFIER, __version__, handler, utils
 
@@ -34,6 +35,19 @@ def main() -> None:
     )
 
     UDP_SOCKET.bind((UDP_HOST, UDP_PORT))
+
+    METRICS_HOST = utils.get_env("METRICS_HOST", CONFIG.get("app", "metrics_host"))
+    METRICS_PORT = utils.get_env("METRICS_PORT", CONFIG.get("app", "metrics_port"))
+
+    log.info(
+        "[APP] Starting metrics",
+        Host=METRICS_HOST,
+        Port=METRICS_PORT,
+    )
+    prometheus_server(
+        addr=METRICS_HOST,
+        port=METRICS_PORT,
+    )
 
     while True:
         data, _ = UDP_SOCKET.recvfrom(1024)

@@ -2,7 +2,11 @@
 # Host to bind the UDP server
 host = "0.0.0.0"
 # Port to bind the UDP server
-port = 9995
+port = 9999
+# Host to listen on for the Prometheus metrics endpoint.
+metrics_host = "0.0.0.0"
+# Port to listen on for the Prometheus metrics endpoint.
+metrics_port = 9998
 
 [wireguard]
 # Wireguard interface name. This will be used to capture specific logs from kernel.
