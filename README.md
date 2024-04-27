@@ -88,6 +88,19 @@ There are many Wireguard events that can be captured. You can update the code to
 - keypair_free_kref: `Keypair <PEER ID> destroyed for peer <PEER ID>`
 - wg_noise_handshake_begin_session: `Keypair <PEER ID> created for peer <PEER ID>`
 
+## Monitoring
+
+You can use Prometheus to scrape internal metrics. You can configure your metric configuration in `config.toml` file.
+
+- `metrics_host`: The host that the metrics server will listen on.
+- `metrics_port`: The port that the metrics server will listen on.
+
+Check <http://localhost:9998>. The following metrics are available:
+
+- `wg_peer_monitoring_app_version_info`: The version information of the application.
+- `wg_peer_monitoring_wg_wireguard_events_total`: The total number of Wireguard events per event's title and peer's ID.
+- `wg_peer_monitoring_wg_wireguard_events_created`: The latest timestamp of Wireguard events that have been created. per event's title and peer's ID.
+
 ---
 
 ## Support 💛
