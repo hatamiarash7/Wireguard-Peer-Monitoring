@@ -9,19 +9,32 @@ from prometheus_client import start_http_server as prometheus_server
 from monitoring import CONFIG, NOTIFIER, __version__, handler, utils
 
 UDP_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+METRICS_SERVER = None
+METRICS_THREAD = None
 
 
 def _signal_handler(sig, _) -> None:
     """OS signal handler"""
 
     log.info(f"[APP] Received signal {sig}, Exit ...")
+
+    # Close UDP socket
     UDP_SOCKET.close()
+
+    # Stop job manager
     NOTIFIER.stop()
+
+    # Stop metrics server
+    METRICS_SERVER.shutdown()
+    METRICS_THREAD.join()
+
+    # Exit the app
     sys.exit(0)
 
 
 def main() -> None:
     """Main function"""
+    global METRICS_SERVER, METRICS_THREAD
 
     UDP_HOST = utils.get_env("UDP_HOST", CONFIG.get("app", "host"))
     UDP_PORT = utils.get_env("UDP_PORT", CONFIG.get("app", "port"))
@@ -44,7 +57,7 @@ def main() -> None:
         Host=METRICS_HOST,
         Port=METRICS_PORT,
     )
-    prometheus_server(
+    METRICS_SERVER, METRICS_THREAD = prometheus_server(
         addr=METRICS_HOST,
         port=METRICS_PORT,
     )
