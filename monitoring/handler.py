@@ -2,7 +2,7 @@
 
 import re
 
-from monitoring import CONFIG, action
+from monitoring import CONFIG, action, prom
 
 # All kernel messages with the Wireguard's interface name
 WG_LOG = re.compile(rf"{CONFIG.get('wireguard', 'interface')}: (.*)$")
@@ -39,3 +39,4 @@ def parse(data: str) -> None:
             result = event["pattern"].search(message)
             if result:
                 getattr(action, event["action"])(event["name"], result)
+                prom.WG_EVENTS.labels(result.group(1), event["name"]).inc()
