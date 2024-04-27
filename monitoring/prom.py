@@ -11,7 +11,7 @@ APP_INFO = Info(
 
 WG_EVENTS = Counter(
     namespace=NS,
-    subsystem="app",
+    subsystem="wg",
     name="wireguard_events",
     documentation="Wireguard events",
     labelnames=["peer", "event"],
