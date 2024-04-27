@@ -6,7 +6,7 @@ import sys
 from loguru import logger as log
 from prometheus_client import start_http_server as prometheus_server
 
-from monitoring import CONFIG, NOTIFIER, __version__, handler, utils
+from monitoring import CONFIG, NOTIFIER, __version__, handler, prom, utils
 
 UDP_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 METRICS_SERVER = None
@@ -61,6 +61,7 @@ def main() -> None:
         addr=METRICS_HOST,
         port=METRICS_PORT,
     )
+    prom.APP_INFO.info({"version": __version__})
 
     while True:
         data, _ = UDP_SOCKET.recvfrom(1024)
