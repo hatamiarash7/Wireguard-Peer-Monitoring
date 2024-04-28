@@ -47,6 +47,8 @@ These data will be stored in Redis for each peer:
 
     ```bash
     docker run -d -v $(pwd)/config.toml:/app/config.toml -p 9999:9999/udp -p 9998:9998 hatamiarash7/wg-peer-monitoring:latest
+    # Or
+    docker compose up -d
     ```
 
 ## Events

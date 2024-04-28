@@ -1,0 +1,30 @@
+name: wg-peer-monitoring
+
+services:
+  monitoring:
+    image: hatamiarash7/wg-peer-monitoring:v1.3.1
+    restart: unless-stopped
+    environment:
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - ./config.toml:/app/config.toml
+    ports:
+      - 9999:9999/udp
+      - 9998:9998
+    depends_on:
+      redis:
+        condition: service_healthy
+  redis:
+    image: redis:7.2.4
+    command: redis-server
+    restart: unless-stopped
+    volumes:
+      - redisdata:/var/lib/redis
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
+      interval: 1s
+      timeout: 3s
+      retries: 5
+
+volumes:
+  redisdata:
