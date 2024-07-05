@@ -6,6 +6,8 @@ from typing import Awaitable, Union
 import redis
 from loguru import logger as log
 
+from monitoring import prom
+
 
 class Redis:
     """This class will handle Redis connection and jobs"""
@@ -58,6 +60,7 @@ class Redis:
             log.warning(
                 f"[WG] Endpoint's information changed for {peer_id} = {ip} : {port}"
             )
+            prom.WG_PEER_CHANGE.labels(peer_id).inc()
             self.notifier.add_job(
                 {
                     "url": self.config.get("manager", "url"),

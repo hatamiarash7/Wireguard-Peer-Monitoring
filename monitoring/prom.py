@@ -18,3 +18,11 @@ WG_EVENTS = Counter(
     documentation="Wireguard events",
     labelnames=["peer", "event"],
 )
+
+WG_PEER_CHANGE = Counter(
+    namespace=NS,
+    subsystem="wg",
+    name="peer_changes",
+    documentation="Peer changes",
+    labelnames=["peer"],
+)
