@@ -17,14 +17,14 @@ toml = "^0.10.2"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.0.0"
-pytest-asyncio = "^0.25.0"
+pytest-asyncio = "^0.26.0"
 
 [tool.poetry.group.dev.dependencies]
 black = "^24.2.0"
 isort = "^5.13.2"
 pylint = "^3.0.0"
 pytest = "^8.0.0"
-pytest-asyncio = "^0.25.0"
+pytest-asyncio = "^0.26.0"
 
 [tool.poetry.urls]
 "Bug Tracker" = "https://github.com/hatamiarash7/wireguard-peer-monitoring/issues"
