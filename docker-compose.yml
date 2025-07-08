@@ -15,7 +15,7 @@ services:
       redis:
         condition: service_healthy
   redis:
-    image: redis:7.4.4
+    image: redis:7.4.5
     command: redis-server
     restart: unless-stopped
     volumes:
