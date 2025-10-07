@@ -12,7 +12,7 @@ httpx = "^0.28.0"
 loguru = "^0.7.2"
 prometheus-client = "^0.23.0"
 python = "^3.10"
-redis = "^5.0.4"
+redis = "^6.0.0"
 toml = "^0.10.2"
 
 [tool.poetry.group.test.dependencies]
