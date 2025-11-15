@@ -12,6 +12,7 @@
         "netns",
         "newlink",
         "rsyslog",
+        "syslogfacility",
         "xmit"
     ]
 }
