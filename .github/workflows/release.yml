@@ -16,11 +16,11 @@ jobs:
 
   docker:
     name: 🐳 Build Docker image
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     needs: init
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
 
       - name: Get repository info
         uses: gacts/github-slug@v1
