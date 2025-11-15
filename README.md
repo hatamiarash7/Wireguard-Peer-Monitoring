@@ -51,6 +51,18 @@ These data will be stored in Redis for each peer:
     docker compose up -d
     ```
 
+## Configuration
+
+You can use these environment variables to configure the application:
+
+| Environment Variable | Description                                           | Default Value      |
+| -------------------- | ----------------------------------------------------- | ------------------ |
+| ENV                  | Application environment (development, production)     | `local`            |
+| LOG_LEVEL            | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) | `INFO`             |
+| CONFIG_FILE          | Path to the configuration file                        | `/app/config.toml` |
+
+Other data will be configured in configuration file. Check `config.toml.example` for more information.
+
 ## Events
 
 There are many Wireguard events that can be captured. You can update the code to handle more events. Here are some of them:
@@ -121,6 +133,6 @@ Don't be shy and reach out to us if you want to contribute 😉
 4. Push to the branch: `git push origin my-new-feature`
 5. Submit a pull request
 
-## Issues
+## Issues 🐛
 
 Each project may have many problems. Contributing to the better development of this project by reporting them. 👍
