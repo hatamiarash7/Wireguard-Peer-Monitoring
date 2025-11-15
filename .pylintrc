@@ -1,6 +1,7 @@
 [MESSAGES CONTROL]
 disable=protected-access,
     too-many-arguments,
+    too-many-positional-arguments,
     line-too-long,
     global-statement
 
