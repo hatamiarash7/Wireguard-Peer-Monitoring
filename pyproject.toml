@@ -16,7 +16,7 @@ redis = "^5.0.4"
 toml = "^0.10.2"
 
 [tool.poetry.group.test.dependencies]
-pytest = "^8.0.0"
+pytest = "^9.0.0"
 pytest-asyncio = "^0.26.0"
 
 [tool.poetry.group.dev.dependencies]
@@ -24,7 +24,7 @@ bandit = "^1.8.6"
 black = "^24.2.0"
 isort = "^5.13.2"
 pylint = "^4.0.0"
-pytest = "^8.0.0"
+pytest = "^9.0.0"
 pytest-asyncio = "^0.26.0"
 
 [tool.poetry.urls]
