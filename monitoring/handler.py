@@ -15,7 +15,7 @@ EVENTS = [
         # Handshake messages like `Receiving handshake initiation|response`
         "name": "Handshake",
         "pattern": re.compile(
-            r"Receiving handshake [a-z]* from peer (\d) \((.*):(.*)\)$"
+            r"Receiving handshake \w+ from peer (\d+) \((.*):(.*)\)$"
         ),
         "action": "check_peer",
     },
