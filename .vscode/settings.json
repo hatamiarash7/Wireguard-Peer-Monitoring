@@ -11,6 +11,7 @@
         "labelnames",
         "netns",
         "newlink",
+        "redisdata",
         "rsyslog",
         "syslogfacility",
         "xmit"
