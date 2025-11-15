@@ -1,6 +1,7 @@
 FROM --platform=$BUILDPLATFORM python:3.14.0-slim as builder
 
 ARG APP_VERSION="undefined@docker"
+ARG DATE_CREATED
 
 ENV PYTHONDONTWRITEBYTECODE=true \
     PYTHONFAULTHANDLER=true \
