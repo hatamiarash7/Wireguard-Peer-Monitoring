@@ -2,10 +2,12 @@ name: wg-peer-monitoring
 
 services:
   monitoring:
-    image: hatamiarash7/wg-peer-monitoring:v1.3.1
+    image: hatamiarash7/wg-peer-monitoring:v1.4.0
     restart: unless-stopped
     environment:
+      - ENV=production
       - LOG_LEVEL=DEBUG
+      - CONFIG_PATH=/app/config.toml
     volumes:
       - ./config.toml:/app/config.toml
     ports:
