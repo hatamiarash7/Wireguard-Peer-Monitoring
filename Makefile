@@ -1,4 +1,4 @@
-.PHONY: clean shell install dev lock run build test lint help
+.PHONY: clean shell install dev lock update run build test lint vuln help
 .DEFAULT_GOAL := help
 
 clean: ## Clean build files
@@ -15,6 +15,9 @@ dev: ## Install dependencies - dev env
 
 lock: ## Update poetry.lock
 	@poetry lock
+
+update: ## Update dependencies
+	@poetry update
 
 run: ## Run project
 	@poetry run python -m monitoring
