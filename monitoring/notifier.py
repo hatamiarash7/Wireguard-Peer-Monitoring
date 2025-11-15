@@ -21,6 +21,8 @@ class JobManager:
             job_data (dict): Job's information
         """
 
+        log.debug(f"[NOTIFIER] Adding job: {job_data}")
+
         self.job_queue.put(job_data)
 
     def process_job(self, job_data: dict) -> None:
@@ -30,6 +32,8 @@ class JobManager:
         Args:
             job_data (dict): Job's information
         """
+
+        log.debug(f"[NOTIFIER] Processing job: {job_data}")
 
         url = job_data["url"]
         payload = job_data["payload"]
