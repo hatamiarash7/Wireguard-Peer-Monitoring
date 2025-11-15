@@ -5,7 +5,7 @@ clean: ## Clean build files
 	@rm -rf dist
 
 shell: ## Activate venv
-	@poetry shell
+	@poetry env activate
 
 install: ## Install dependencies
 	@poetry install
