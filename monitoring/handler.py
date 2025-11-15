@@ -2,6 +2,8 @@
 
 import re
 
+from loguru import logger as log
+
 from monitoring import CONFIG, action, prom
 
 # All kernel messages with the Wireguard's interface name
@@ -34,6 +36,7 @@ def parse(data: str) -> None:
     wg_match = WG_LOG.search(data)
     if wg_match:
         message = wg_match.group(1)
+        log.trace(f"[HANDLER] Received message: `{message}`")
 
         for event in EVENTS:
             result = event["pattern"].search(message)
