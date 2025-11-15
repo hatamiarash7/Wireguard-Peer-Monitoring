@@ -27,8 +27,8 @@ These data will be stored in Redis for each peer:
 
 2. Configure rsyslog to capture the logs. You can do this by adding the following line to `/etc/rsyslog.d/99-wireguard.conf`:
 
-    ```bash
-    kern.*  @127.0.0.1:9999
+    ```text
+    if $syslogfacility-text == 'kern' and $msg contains 'wireguard:' then @127.0.0.1:9999
     ```
 
 3. Create a new config file and fill it will proper data:
