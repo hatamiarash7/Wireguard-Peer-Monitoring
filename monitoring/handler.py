@@ -1,45 +1,54 @@
-"""Event handler for WireGuard kernel messages."""
+"""Parse supported messages for exactly one WireGuard interface."""
 
 import re
+from ipaddress import ip_address
 
-from loguru import logger as log
+from monitoring import action
+from monitoring.prom import Metrics
+from monitoring.redis_handler import Redis
 
-from monitoring import CONFIG, action, prom
-
-# All kernel messages with the Wireguard's interface name
-WG_LOG = re.compile(rf"{CONFIG.get('wireguard', 'interface')}: (.*)$")
-
-# Events to be handled
-EVENTS = [
-    {
-        # Handshake messages like `Receiving handshake initiation|response`
-        "name": "Handshake",
-        "pattern": re.compile(
-            r"Receiving handshake \w+ from peer (\d+) \((.*):(.*)\)$"
-        ),
-        "action": "check_peer",
-    },
-    {
-        # Keepalive messages
-        "name": "Keepalive",
-        "pattern": re.compile(
-            r"Receiving keepalive packet from peer (\d) \((.*):(.*)\)$"
-        ),
-        "action": "keepalive",
-    },
-]
+ENDPOINT = r"peer (\d+) \((\[[^\]\s]+\]|[^():\s]+):(\d{1,5})\)"
+EVENTS = (
+    (
+        "Handshake",
+        re.compile(r"Receiving handshake (?:initiation|response) from " + ENDPOINT),
+        action.check_peer,
+    ),
+    (
+        "Keepalive",
+        re.compile(r"Receiving keepalive packet from " + ENDPOINT),
+        action.keepalive,
+    ),
+)
 
 
-def parse(data: str) -> None:
-    """Parse event's message and call the respective action."""
+class Handler:  # pylint: disable=too-few-public-methods
+    """Precompile interface matching and inject storage and metrics explicitly."""
 
-    wg_match = WG_LOG.search(data)
-    if wg_match:
-        message = wg_match.group(1)
-        log.trace(f"[HANDLER] Received message: `{message}`")
+    def __init__(self, interface: str, store: Redis, metrics: Metrics):
+        self.pattern = re.compile(rf"(?<![\w.:-]){re.escape(interface)}: (.*)$")
+        self.store = store
+        self.metrics = metrics
 
-        for event in EVENTS:
-            result = event["pattern"].search(message)
+    def parse(self, data: str) -> bool:
+        """Return whether a supported event was stored; reject malformed endpoints."""
+        wg_match = self.pattern.search(data.rstrip())
+        if not wg_match:
+            return False
+        for name, pattern, callback in EVENTS:
+            result = pattern.fullmatch(wg_match.group(1))
             if result:
-                getattr(action, event["action"])(event["name"], result)
-                prom.WG_EVENTS.labels(result.group(1), event["name"]).inc()
+                try:
+                    ip_address(result.group(2).strip("[]"))
+                    if not 1 <= int(result.group(3)) <= 65535:
+                        raise ValueError("Invalid endpoint port")
+                except ValueError:
+                    self.metrics.errors.labels("endpoint").inc()
+                    return False
+                callback(self.store, result)
+                self.metrics.events.labels(result.group(1), name).inc()
+                self.metrics.last_event.labels(
+                    result.group(1), name
+                ).set_to_current_time()
+                return True
+        return False

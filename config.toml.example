@@ -19,7 +19,16 @@ host = "localhost"
 password = ""
 port = 6379
 username = "default"
+# Maximum time for Redis connection and socket operations (seconds).
+socket_timeout = 2.0
 
 [manager]
+# An empty URL disables webhooks. Delivery is best-effort and queued in memory.
 # Wireguard manager webhook's URL
 url = ""
+timeout = 5.0
+# Additional attempts after the first request; only transient errors are retried.
+retries = 3
+retry_delay = 0.5
+queue_size = 1000
+shutdown_timeout = 10.0

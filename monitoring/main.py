@@ -1,72 +1,94 @@
-"""Main module"""
+"""Application lifecycle and resilient UDP ingestion."""
 
+import signal
 import socket
-import sys
+import threading
+from contextlib import ExitStack
 
 from loguru import logger as log
-from prometheus_client import start_http_server as prometheus_server
+from prometheus_client import start_http_server
+from redis.exceptions import RedisError
 
-from monitoring import CONFIG, NOTIFIER, __version__, handler, prom
-
-UDP_SOCKET = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-METRICS_SERVER = None
-METRICS_THREAD = None
-
-
-def _signal_handler(sig, _) -> None:
-    """OS signal handler"""
-
-    log.info(f"[APP] Received signal {sig}, Exit ...")
-
-    # Close UDP socket
-    UDP_SOCKET.close()
-
-    # Stop job manager
-    NOTIFIER.stop()
-
-    # Stop metrics server
-    METRICS_SERVER.shutdown()
-    METRICS_THREAD.join()
-
-    # Exit the app
-    sys.exit(0)
+from monitoring import __version__
+from monitoring.config import ConfigError, ConfigManager
+from monitoring.handler import Handler
+from monitoring.notifier import JobManager
+from monitoring.prom import Metrics
+from monitoring.redis_handler import Redis
+from monitoring.utils import configure_logging, get_env
 
 
-def main() -> None:
-    """Main function"""
-    global METRICS_SERVER, METRICS_THREAD
-
-    udp_host = CONFIG.get("app", "host")
-    udp_port = CONFIG.get("app", "port")
-
-    log.info(
-        "[APP] Starting app",
-        Interface=CONFIG.get("wireguard", "interface"),
-        Version=__version__,
-        Host=udp_host,
-        PORT=udp_port,
-    )
-
-    UDP_SOCKET.bind((udp_host, udp_port))
-
-    metrics_host = CONFIG.get("app", "metrics_host")
-    metrics_port = CONFIG.get("app", "metrics_port")
-
-    log.info(
-        "[APP] Starting metrics",
-        Host=metrics_host,
-        Port=metrics_port,
-    )
-    METRICS_SERVER, METRICS_THREAD = prometheus_server(
-        addr=metrics_host,
-        port=metrics_port,
-    )
-    prom.APP_INFO.info({"version": __version__})
-
-    while True:
-        data, _ = UDP_SOCKET.recvfrom(1024)
-        handler.parse(data.decode())
+def receive(
+    udp_socket: socket.socket, handler: Handler, stopped: threading.Event
+) -> None:
+    """Read complete UDP datagrams; malformed input and Redis outages are isolated."""
+    while not stopped.is_set():
+        try:
+            data, _ = udp_socket.recvfrom(65535)
+        except socket.timeout:
+            continue
+        try:
+            handler.parse(data.decode("utf-8"))
+        except UnicodeDecodeError:
+            handler.metrics.errors.labels("encoding").inc()
+        except RedisError:
+            handler.metrics.errors.labels("redis").inc()
+            log.error("[REDIS] Event could not be stored")
 
 
-if __name__ == "__main__":
-    main()
+def run(config: ConfigManager, stopped: threading.Event) -> None:
+    """Start dependencies in order and release them on every exit path."""
+    metrics = Metrics()
+    metrics.app_info.info({"version": __version__})
+    with ExitStack() as resources:
+        notifier = JobManager(config, metrics)
+        store = Redis(config, notifier, metrics)
+        resources.callback(store.close)
+        store.ping()
+        resources.callback(notifier.stop)
+        notifier.start()
+        host = config.get("app", "host")
+        family = socket.AF_INET6 if ":" in host else socket.AF_INET
+        udp_socket = resources.enter_context(socket.socket(family, socket.SOCK_DGRAM))
+        udp_socket.settimeout(0.5)
+        udp_socket.bind((host, config.get("app", "port")))
+        server, thread = start_http_server(
+            config.get("app", "metrics_port"),
+            addr=config.get("app", "metrics_host"),
+            registry=metrics.registry,
+        )
+        resources.callback(thread.join)
+        resources.callback(server.server_close)
+        resources.callback(server.shutdown)
+        log.info(
+            "[APP] Monitoring {} on {}:{} ({})",
+            config.get("wireguard", "interface"),
+            host,
+            config.get("app", "port"),
+            __version__,
+        )
+        receive(
+            udp_socket,
+            Handler(config.get("wireguard", "interface"), store, metrics),
+            stopped,
+        )
+
+
+def main() -> int:
+    """CLI entry point with cooperative signal handling and a useful exit status."""
+    stopped = threading.Event()
+    previous = {}
+    try:
+        configure_logging()
+        config = ConfigManager(get_env("CONFIG_FILE", "/app/config.toml"))
+        config.load()
+        for sig in (signal.SIGINT, signal.SIGTERM, signal.SIGHUP):
+            previous[sig] = signal.signal(sig, lambda *_: stopped.set())
+        run(config, stopped)
+    except (ConfigError, OSError, RedisError, ValueError) as exc:
+        log.error("[APP] {}", exc)
+        return 1
+    finally:
+        for sig, original in previous.items():
+            signal.signal(sig, original)
+    return 0

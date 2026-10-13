@@ -1,28 +1,44 @@
-"""Prometheus module"""
+"""Instance-owned Prometheus collectors, isolated from import-time state."""
 
-from prometheus_client import Counter, Info
+from prometheus_client import CollectorRegistry, Counter, Gauge, Info
 
 NS = "wg_peer_monitoring"
 
-APP_INFO = Info(
-    namespace=NS,
-    subsystem="app",
-    name="version",
-    documentation="Application information",
-)
 
-WG_EVENTS = Counter(
-    namespace=NS,
-    subsystem="wg",
-    name="wireguard_events",
-    documentation="Wireguard events",
-    labelnames=["peer", "event"],
-)
+class Metrics:  # pylint: disable=too-few-public-methods
+    """Application metrics; every runtime gets its own registry."""
 
-WG_PEER_CHANGE = Counter(
-    namespace=NS,
-    subsystem="wg",
-    name="peer_changes",
-    documentation="Peer changes",
-    labelnames=["peer"],
-)
+    def __init__(self):
+        self.registry = CollectorRegistry()
+        options = {"namespace": NS, "registry": self.registry}
+        self.app_info = Info("app_version", "Application version", **options)
+        self.events = Counter(
+            "wg_wireguard_events",
+            "Successfully stored WireGuard events",
+            ["peer", "event"],
+            **options,
+        )
+        self.peer_changes = Counter(
+            "wg_peer_changes",
+            "New or changed endpoints",
+            ["peer"],
+            **options,
+        )
+        self.last_event = Gauge(
+            "wg_last_event_timestamp_seconds",
+            "Last stored event (Unix seconds)",
+            ["peer", "event"],
+            **options,
+        )
+        self.errors = Counter(
+            "errors",
+            "Rejected datagrams or failed storage operations",
+            ["reason"],
+            **options,
+        )
+        self.notifications = Counter(
+            "notifications",
+            "Webhook outcomes",
+            ["result"],
+            **options,
+        )
