@@ -1,51 +1,49 @@
-FROM --platform=$BUILDPLATFORM python:3.15.0-slim as builder
+ARG PYTHON_VERSION=3.14.4
+FROM python:${PYTHON_VERSION}-slim AS builder
 
-ARG APP_VERSION="undefined@docker"
-ARG DATE_CREATED
-
-ENV PYTHONDONTWRITEBYTECODE=true \
-    PYTHONFAULTHANDLER=true \
-    PYTHONUNBUFFERED=true \
-    PYTHONHASHSEED=random \
-    PYTHONPATH=/usr/lib/python3/dist-packages \
-    # pip
-    PIP_NO_CACHE_DIR=off \
-    PIP_DISABLE_PIP_VERSION_CHECK=on \
-    PIP_DEFAULT_TIMEOUT=100 \
-    # poetry
-    POETRY_NO_INTERACTION=true \
-    POETRY_VIRTUALENVS_IN_PROJECT=true \
-    POETRY_VERSION=1.8.2 \
-    POETRY_VIRTUALENVS_CREATE=false \
-    POETRY_CACHE_DIR='/var/cache/poetry' \
-    POETRY_HOME='/opt/poetry'
-
-LABEL org.opencontainers.image.title="wireguard-peer-monitoring"
-LABEL org.opencontainers.image.description="Monitor Wireguard peers using kernel events"
-LABEL org.opencontainers.image.url="https://github.com/hatamiarash7/Wireguard-Peer-Monitoring"
-LABEL org.opencontainers.image.source="https://github.com/hatamiarash7/Wireguard-Peer-Monitoring"
-LABEL org.opencontainers.image.vendor="hatamiarash7"
-LABEL org.opencontainers.image.author="hatamiarash7"
-LABEL org.opencontainers.version="$APP_VERSION"
-LABEL org.opencontainers.image.created="$DATE_CREATED"
-LABEL org.opencontainers.image.licenses="MIT"
-
-RUN apt update \
-    && apt install --no-install-recommends -y \
-    curl \
-    && apt-get autoremove -y && apt-get clean -y && rm -rf /var/lib/apt/lists/*
-
+ARG POETRY_VERSION=2.4.3
+ENV PIP_DISABLE_PIP_VERSION_CHECK=1 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1
 WORKDIR /app
 
-RUN ls && curl -sSL https://install.python-poetry.org | python3 - && sleep 5
+# BuildKit keeps this cache outside the resulting image.
+# hadolint ignore=DL3042
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install "poetry==${POETRY_VERSION}"
+COPY pyproject.toml poetry.lock ./
+RUN --mount=type=cache,target=/root/.cache/pypoetry \
+    poetry sync --only main --no-root
+COPY README.md LICENSE ./
+COPY monitoring ./monitoring
+RUN poetry build --format wheel \
+    && .venv/bin/pip install --no-deps dist/*.whl
 
-ENV PATH="/opt/poetry/bin:$PATH"
-
-COPY ./pyproject.toml .
-COPY ./poetry.lock .
-
-RUN poetry install --without dev,test --no-interaction --no-ansi
-
-COPY . .
-
+FROM python:${PYTHON_VERSION}-slim AS runtime
+ARG APP_VERSION=""
+ARG DATE_CREATED
+ARG VCS_REF
+ENV PATH="/app/.venv/bin:$PATH" \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONFAULTHANDLER=1 \
+    CONFIG_FILE=/app/config.toml \
+    ENV=production \
+    APP_VERSION=${APP_VERSION}
+LABEL org.opencontainers.image.title="wireguard-peer-monitoring" \
+    org.opencontainers.image.description="Monitor WireGuard peers using kernel events" \
+    org.opencontainers.image.source="https://github.com/hatamiarash7/Wireguard-Peer-Monitoring" \
+    org.opencontainers.image.version="${APP_VERSION}" \
+    org.opencontainers.image.created="${DATE_CREATED}" \
+    org.opencontainers.image.revision="${VCS_REF}" \
+    org.opencontainers.image.licenses="MIT"
+WORKDIR /app
+RUN groupadd --gid 10001 monitoring \
+    && useradd --uid 10001 --gid monitoring --no-create-home --shell /usr/sbin/nologin monitoring
+COPY --from=builder /app/.venv /app/.venv
+USER 10001:10001
+EXPOSE 9999/udp 9998/tcp
+STOPSIGNAL SIGTERM
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD ["python", "-m", "monitoring.healthcheck"]
 CMD ["python", "-m", "monitoring"]

@@ -1,8 +1,9 @@
-.venv
-.vscode
-.git*
-*.pyc
-Makefile
-README.md
-.pylintrc
-.flake8
+# Only application source and packaging inputs enter the build context.
+*
+!Dockerfile
+!pyproject.toml
+!poetry.lock
+!README.md
+!LICENSE
+!monitoring/
+!monitoring/*.py

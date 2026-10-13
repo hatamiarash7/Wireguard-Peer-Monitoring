@@ -2,31 +2,43 @@ name: wg-peer-monitoring
 
 services:
   monitoring:
-    image: hatamiarash7/wg-peer-monitoring:v1.4.0
+    build: .
+    image: wg-peer-monitoring:local
     restart: unless-stopped
     environment:
-      - ENV=production
-      - LOG_LEVEL=DEBUG
-      - CONFIG_PATH=/app/config.toml
+      ENV: production
+      LOG_LEVEL: INFO
+      CONFIG_FILE: /app/config.toml
     volumes:
-      - ./config.toml:/app/config.toml
+      - type: bind
+        source: ./config.toml
+        target: /app/config.toml
+        read_only: true
+        bind:
+          create_host_path: false
     ports:
-      - 9999:9999/udp
-      - 9998:9998
+      - "127.0.0.1:9999:9999/udp"
+      - "127.0.0.1:9998:9998"
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+    stop_grace_period: 20s
     depends_on:
       redis:
         condition: service_healthy
+
   redis:
     image: redis:8.10.2
-    command: redis-server
+    command: [redis-server, --appendonly, "yes"]
     restart: unless-stopped
     volumes:
-      - redisdata:/var/lib/redis
+      - redisdata:/data
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli ping | grep PONG"]
-      interval: 1s
+      test: [CMD, redis-cli, ping]
+      interval: 5s
       timeout: 3s
       retries: 5
+      start_period: 5s
 
 volumes:
   redisdata:
