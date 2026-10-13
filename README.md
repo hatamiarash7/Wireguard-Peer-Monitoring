@@ -1,138 +1,248 @@
-# Wireguard Peer Monitoring
+# WireGuard Peer Monitoring
 
-[![made-with-python](https://img.shields.io/badge/Made%20with-Python-1f425f.svg)](https://www.python.org/) [![GitHub release](https://img.shields.io/github/release/hatamiarash7/Wireguard-Peer-Monitoring.svg)](https://GitHub.com/hatamiarash7/Wireguard-Peer-Monitoring/releases/) [![Release](https://github.com/hatamiarash7/Wireguard-Peer-Monitoring/actions/workflows/release.yml/badge.svg)](https://github.com/hatamiarash7/Wireguard-Peer-Monitoring/actions/workflows/release.yml) ![GitHub License](https://img.shields.io/github/license/hatamiarash7/Wireguard-Peer-Monitoring)
+Monitor WireGuard peer endpoints, received handshakes, and keepalives using Linux kernel events. Store the latest activity in Redis, send endpoint-change webhooks, and expose Prometheus metrics.
 
-This project uses [Linux kernel dynamic debug](https://www.kernel.org/doc/html/latest/admin-guide/dynamic-debug-howto.html) features to capture and process Wireguard events and monitor peer activity.
+## How monitoring works
 
-This assumes that `debugfs` is mounted under `/sys/kernel/debug`.
+```text
+WireGuard kernel dynamic-debug messages
+    → rsyslog → UDP listener → interface/event parser
+    → atomic Redis update → Prometheus counters and last-event gauges
+                          → bounded queue → HTTP webhook worker
+```
 
-The main purpose of this project is monitor Wireguard peers. Currently, It can be used to detect and handle `handshake` and `keepalive` events (You can handle more events, check [Events](#events) section).
+The service processes **received handshake initiation**, **received handshake response**, and **received keepalive packet** messages for one configured interface. IPv4 and bracketed IPv6 endpoints are supported. A new peer or a changed IP/port triggers a webhook, including changes first observed in a keepalive.
 
-All peer's information will be stored in Redis for further analysis. Also, notify the user when a peer's endpoint (IP, PORT) is updated.
+Each event compares and updates the Redis hash atomically with a Lua script. After the script is cached, this takes one Redis round trip. The HTTP worker reuses connections and runs independently of UDP ingestion.
 
-These data will be stored in Redis for each peer:
+### What the data means
 
-- Endpoint's IP
-- Endpoint's Port
-- Last keepalive time
-- Last handshake time
+- Peer IDs are kernel-internal numeric IDs, **not public keys**. They can change or be reused after interfaces or peers are recreated.
+- Timestamps record when this service processes an event, in UTC. A received handshake message does not prove a completed handshake; this is not a replacement for `wg show`'s latest-handshake or transfer statistics.
+- An inactive peer emits no events. Missing keepalives do not prove it is offline: WireGuard sends them only when needed or when persistent keepalive is configured.
+- The service observes logs; it does not configure WireGuard, inspect tunnel traffic, or require privileged container access.
 
-## How to
+## Prerequisites
 
-1. First, you need to enable Wireguard debug logs. You can do this by running the following command:
+- A Linux WireGuard host with dynamic-debug support and `debugfs` mounted at `/sys/kernel/debug`.
+- rsyslog reading kernel messages, usually through `imklog` or the system journal.
+- Redis and either Docker Compose or Python 3.10+ with Poetry 2.4.3. Development and images use the Python patch version in `.python-version`.
 
-    ```bash
-    echo 'module wireguard +p' | sudo tee /sys/kernel/debug/dynamic_debug/control
-    ```
+## Quick start with Docker Compose
 
-2. Configure rsyslog to capture the logs. You can do this by adding the following line to `/etc/rsyslog.d/99-wireguard.conf`:
+1. Create the configuration:
 
-    ```text
-    if $syslogfacility-text == 'kern' and $msg contains 'wireguard:' then @127.0.0.1:9999
-    ```
+   ```bash
+   cp config.toml.example config.toml
+   ```
 
-3. Create a new config file and fill it will proper data:
+   Edit `config.toml`: set `[wireguard].interface` to your interface, `[redis].host` to `"redis"`, and `[manager].url` to your webhook URL (or `""` to disable delivery). Set `[app].host` and `[app].metrics_host` to `"0.0.0.0"` inside the container. Review all example values before use.
 
-    ```bash
-    cp config.example.toml config.toml
-    ```
+2. Build and start the services:
 
-4. Run project to capture and handle events:
+   ```bash
+   docker compose up -d --build
+   docker compose logs -f monitoring
+   curl --fail http://127.0.0.1:9998/metrics
+   ```
 
-    ```bash
-    CONFIG_FILE="config.toml" make run
-    ```
+   Compose builds the current checkout, waits for Redis health, and persists Redis AOF data in the `redisdata` volume at `/data`. The application runs as UID/GID `10001`, with a read-only filesystem and configuration mount. Ensure that UID can read the mounted file.
 
-    Or using Docker
+3. Enable WireGuard debug logging on the **host**:
 
-    ```bash
-    docker run -d -v $(pwd)/config.toml:/app/config.toml -p 9999:9999/udp -p 9998:9998 hatamiarash7/wg-peer-monitoring:latest
-    # Or
-    docker compose up -d
-    ```
+   ```bash
+   echo 'module wireguard +p' | sudo tee /sys/kernel/debug/dynamic_debug/control
+   ```
+
+   If the control file is absent, check the kernel's dynamic-debug support and debugfs mount. Debug logging must be re-enabled after reboot unless you configure host persistence.
+
+4. Add this rule to `/etc/rsyslog.d/99-wireguard.conf`:
+
+   ```text
+   if $syslogfacility-text == 'kern' and $msg contains 'wireguard:' then {
+       action(type="omfwd" target="127.0.0.1" port="9999" protocol="udp")
+   }
+   ```
+
+   Validate and reload rsyslog:
+
+   ```bash
+   sudo rsyslogd -N1
+   sudo systemctl restart rsyslog
+   ```
+
+   This rule relies on your kernel log format containing `wireguard:`. Check `sudo journalctl -k -f` while a peer connects; adapt the filter to the actual messages if necessary. The parser itself requires the exact configured interface followed by a colon and a space.
+
+To disable the extra kernel logging:
+
+```bash
+echo 'module wireguard -p' | sudo tee /sys/kernel/debug/dynamic_debug/control
+```
+
+### Published image
+
+For an existing Redis deployment, mount your configuration and run a published image:
+
+```bash
+docker run -d --name wg-peer-monitoring --restart unless-stopped \
+  --read-only --cap-drop ALL --security-opt no-new-privileges \
+  --mount type=bind,src="$(pwd)/config.toml",dst=/app/config.toml,readonly \
+  -p 127.0.0.1:9999:9999/udp -p 127.0.0.1:9998:9998 \
+  hatamiarash7/wg-peer-monitoring:latest
+```
+
+Use a release tag for reproducible deployments. Inside a container, `localhost` refers to that container; configure a Redis hostname reachable from its network. Release builds target `linux/amd64` and `linux/arm64`.
+
+### Local development
+
+```bash
+poetry env use python3.14
+make dev
+cp config.toml.example config.toml
+# Configure a reachable Redis server, interface, and optional webhook.
+CONFIG_FILE=config.toml make run
+```
+
+`python -m monitoring` and the installed `wg-peer-monitoring` command are equivalent entry points. Imports do not load configuration, open sockets, or start threads.
 
 ## Configuration
 
-You can use these environment variables to configure the application:
+The TOML file is validated before startup. Missing options use defaults; unknown sections/options, wrong types, invalid ports, and malformed webhook URLs produce a nonzero exit status.
 
-| Environment Variable | Description                                           | Default Value      |
-| -------------------- | ----------------------------------------------------- | ------------------ |
-| ENV                  | Application environment (development, production)     | `local`            |
-| LOG_LEVEL            | Logging level (DEBUG, INFO, WARNING, ERROR, CRITICAL) | `INFO`             |
-| CONFIG_FILE          | Path to the configuration file                        | `/app/config.toml` |
+| Environment variable | Purpose                                             | Default                       |
+| -------------------- | --------------------------------------------------- | ----------------------------- |
+| `CONFIG_FILE`        | TOML file path                                      | `/app/config.toml`            |
+| `LOG_LEVEL`          | Loguru level, such as `DEBUG`, `INFO`, or `WARNING` | `INFO`                        |
+| `ENV`                | Enables colored logs when set to `local`            | `local` (image: `production`) |
+| `APP_VERSION`        | Release version override for image metadata/metrics | Installed package version     |
 
-Other data will be configured in configuration file. Check `config.toml.example` for more information.
+| TOML option                             | Default              | Purpose                                                          |
+| --------------------------------------- | -------------------- | ---------------------------------------------------------------- |
+| `app.host` / `app.port`                 | `127.0.0.1` / `9999` | UDP bind address/port; IPv6 literal addresses also work          |
+| `app.metrics_host` / `app.metrics_port` | `127.0.0.1` / `9998` | Prometheus listener                                              |
+| `wireguard.interface`                   | `wg0`                | Exact interface name to monitor                                  |
+| `redis.host` / `redis.port`             | `localhost` / `6379` | Redis connection                                                 |
+| `redis.db`                              | `3`                  | Redis database index                                             |
+| `redis.username` / `redis.password`     | `default` / empty    | Redis credentials                                                |
+| `redis.socket_timeout`                  | `2.0`                | Redis connect/read timeout in seconds                            |
+| `manager.url`                           | empty                | HTTP(S) webhook URL; empty disables notifications                |
+| `manager.timeout`                       | `5.0`                | HTTP connect/read/write/pool timeout in seconds                  |
+| `manager.retries`                       | `3`                  | Extra attempts after the first request                           |
+| `manager.retry_delay`                   | `0.5`                | Initial exponential retry delay in seconds, capped at 30 seconds |
+| `manager.queue_size`                    | `1000`               | Maximum queued notifications                                     |
+| `manager.shutdown_timeout`              | `10.0`               | Maximum wait for the webhook worker during shutdown              |
 
-## Events
+The example uses wildcard app listeners for Docker. Compose publishes both ports only on host loopback. For a remote rsyslog sender or Prometheus server, change the port mappings deliberately and restrict access to trusted senders: UDP messages are unauthenticated.
 
-There are many Wireguard events that can be captured. You can update the code to handle more events. Here are some of them:
+## Redis data and webhook contract
 
-- wg_cookie_message_consume: `Could not decrypt invalid cookie response`
-- send4: `No route to <IP:PORT>, error <ERROR CODE>`
-- send6: `No route to <IP:PORT>, error <ERROR CODE>`
-- wg_receive_handshake_packet: `Receiving cookie response from <IP:PORT>`
-- wg_receive_handshake_packet: `Invalid MAC of handshake, dropping packet from <IP:PORT>`
-- wg_receive_handshake_packet: `Invalid handshake initiation from <IP:PORT>`
-- wg_receive_handshake_packet: `Receiving handshake initiation from peer <PEER ID> (<IP:PORT>)`
-- wg_receive_handshake_packet: `Invalid handshake response from <IP:PORT>`
-- wg_receive_handshake_packet: `Receiving handshake response from peer <PEER ID> (<IP:PORT>)`
-- wg_packet_consume_data_done: `Receiving keepalive packet from peer <PEER ID> (<IP:PORT>)`
-- wg_packet_consume_data_done: `Packet has unallowed src IP <IP> from peer <PEER ID> (<IP:PORT>)`
-- wg_packet_consume_data_done: `Packet is neither ipv4 nor ipv6 from peer <PEER ID> (<IP:PORT>)`
-- wg_packet_consume_data_done: `Packet has incorrect size from peer <PEER ID> (<IP:PORT>)`
-- wg_packet_rx_poll: `Packet has invalid nonce <PEER ID> (max <PEER ID>)`
-- wg_packet_receive: `Dropping handshake packet from <IP:PORT>`
-- wg_packet_send_handshake_initiation: `Sending handshake initiation to peer <PEER ID> (<IP:PORT>)`
-- wg_packet_send_handshake_response: `Sending handshake response to peer <PEER ID> (<IP:PORT>)`
-- wg_packet_send_handshake_cookie: `Sending cookie response for denied handshake message for <IP:PORT>`
-- wg_packet_send_keepalive: `Sending keepalive packet to peer <PEER ID> (<IP:PORT>)`
-- wg_expired_retransmit_handshake: `Handshake for peer <PEER ID> (<IP:PORT>) did not complete after <TRY NUMBER> attempts, giving up`
-- wg_expired_retransmit_handshake: `Handshake for peer <PEER ID> (<IP:PORT>) did not complete after <SEC> seconds, retrying (try <TRY NUMBER>)`
-- wg_expired_new_handshake: `Retrying handshake with peer <PEER ID> (<IP:PORT>) because we stopped hearing back after <SEC> seconds`
-- wg_queued_expired_zero_key_material: `Zeroing out all keys for peer <PEER ID> (<IP:PORT>), since we haven't received a new one in <SEC> seconds`
-- wg_peer_create: `Peer <PEER ID> created`
-- kref_release: `Peer <PEER ID> (<IP:PORT>) destroyed`
-- wg_xmit: `Invalid IP packet`
-- wg_xmit: `No peer has allowed IPs matching <IPv4>`
-- wg_xmit: `No peer has allowed IPs matching <IPv6>`
-- wg_xmit: `No valid endpoint has been configured or discovered for peer <PEER ID>`
-- wg_destruct: `Interface destroyed`
-- wg_newlink: `Interface created`
-- wg_netns_pre_exit: `Creating namespace exiting`
-- keypair_free_kref: `Keypair <PEER ID> destroyed for peer <PEER ID>`
-- wg_noise_handshake_begin_session: `Keypair <PEER ID> created for peer <PEER ID>`
+Hashes retain the existing key format, `wireguard_peer:{peer_id}`:
 
-## Monitoring
+```text
+wireguard_peer:12
+  ip         192.0.2.10
+  port       51820
+  handshake  2026-10-13 12:00:00
+  keepalive  2026-10-13 12:00:25
+```
 
-You can use Prometheus to scrape internal metrics. You can configure your metric configuration in `config.toml` file.
+The `handshake` and `keepalive` fields are created when that event is observed; one does not overwrite the other. IPv6 addresses are stored without brackets. Hashes have no TTL and survive application restarts when Redis persistence is enabled.
 
-- `metrics_host`: The host that the metrics server will listen on.
-- `metrics_port`: The port that the metrics server will listen on.
+Inspect a peer in Compose:
 
-Check <http://localhost:9998>. The following metrics are available:
+```bash
+docker compose exec redis redis-cli -n 3 HGETALL wireguard_peer:12
+```
 
-- `wg_peer_monitoring_app_version_info`: The version information of the application.
-- `wg_peer_monitoring_wg_wireguard_events_total`: The total number of Wireguard events per event's title and peer's ID.
-- `wg_peer_monitoring_wg_wireguard_events_created`: The latest timestamp of Wireguard events that have been created. per event's title and peer's ID.
+A new or changed endpoint queues an HTTP POST with JSON:
 
----
+```json
+{"peer": "192.0.2.10:51820"}
+```
 
-## Support 💛
+IPv6 payloads use `{"peer": "[2001:db8::10]:51820"}`. The receiver should accept duplicate notifications. Successful `2xx` responses complete delivery; network errors, `408`, `429`, and `5xx` responses are retried. Other HTTP errors and redirects are not retried or followed.
 
-[![Donate with Bitcoin](https://img.shields.io/badge/Bitcoin-bc1qmmh6vt366yzjt3grjxjjqynrrxs3frun8gnxrz-orange)](https://donatebadges.ir/donate/Bitcoin/bc1qmmh6vt366yzjt3grjxjjqynrrxs3frun8gnxrz) [![Donate with Ethereum](https://img.shields.io/badge/Ethereum-0x0831bD72Ea8904B38Be9D6185Da2f930d6078094-blueviolet)](https://donatebadges.ir/donate/Ethereum/0x0831bD72Ea8904B38Be9D6185Da2f930d6078094)
+### Delivery and lifecycle limits
 
-<div><a href="https://payping.ir/@hatamiarash7"><img src="https://cdn.payping.ir/statics/Payping-logo/Trust/blue.svg" height="128" width="128"></a></div>
+- UDP, kernel logging, and rsyslog can drop or rate-limit messages. This is best-effort observation, not an audit log.
+- Redis is checked at startup. Later Redis failures drop the affected event and increment an error counter; subsequent datagrams continue to be processed. Redis operations remain synchronous and are bounded by socket timeouts.
+- Notifications are queued **after** persistence. The queue is bounded and memory-only: overflow, exhausted retries, process failure, or shutdown can lose notifications. An unchanged endpoint does not requeue a failed notification. There is no transactional outbox or exactly-once guarantee.
+- `SIGINT`, `SIGTERM`, and `SIGHUP` request shutdown. Queued webhooks are discarded, retry waits are interrupted, and an in-flight request gets up to the configured shutdown timeout. SIGHUP does not reload configuration.
+- One process monitors one interface. Give independent hosts/interfaces separate Redis databases to prevent numeric peer-ID collisions.
+- Peer hashes and per-peer metric series remain until explicitly cleared or the process restarts (metrics only). Long-lived deployments with frequent peer recreation should plan retention and cardinality management.
 
-## Contributing 🤝
+## Prometheus monitoring
 
-Don't be shy and reach out to us if you want to contribute 😉
+Scrape `http://127.0.0.1:9998/metrics`. The container healthcheck probes the configured metrics socket; it indicates listener liveness, not Redis readiness or webhook delivery.
 
-1. Fork it!
-2. Create your feature branch: `git checkout -b my-new-feature`
-3. Commit your changes: `git commit -am 'Add some feature'`
-4. Push to the branch: `git push origin my-new-feature`
-5. Submit a pull request
+| Metric                                               | Labels          | Meaning                                                 |
+| ---------------------------------------------------- | --------------- | ------------------------------------------------------- |
+| `wg_peer_monitoring_app_version_info`                | `version`       | Application release                                     |
+| `wg_peer_monitoring_wg_wireguard_events_total`       | `peer`, `event` | Successfully stored events (`Handshake` or `Keepalive`) |
+| `wg_peer_monitoring_wg_peer_changes_total`           | `peer`          | New or changed endpoints                                |
+| `wg_peer_monitoring_wg_last_event_timestamp_seconds` | `peer`, `event` | Last successfully stored event, Unix seconds            |
+| `wg_peer_monitoring_errors_total`                    | `reason`        | `encoding`, `endpoint`, or `redis` failures             |
+| `wg_peer_monitoring_notifications_total`             | `result`        | `delivered`, `failed`, or `dropped` notifications       |
 
-## Issues 🐛
+Prometheus also emits counter `_created` samples. These are the **creation times of counter series**, not the times of the latest events. Counters reset on restart; last-event gauges become available after a matching event.
 
-Each project may have many problems. Contributing to the better development of this project by reporting them. 👍
+Example scrape configuration for Prometheus on the same host:
+
+```yaml
+scrape_configs:
+  - job_name: wireguard-peer-monitoring
+    static_configs:
+      - targets: ["127.0.0.1:9998"]
+```
+
+Useful PromQL:
+
+```promql
+sum by (event) (rate(wg_peer_monitoring_wg_wireguard_events_total[5m]))
+time() - wg_peer_monitoring_wg_last_event_timestamp_seconds{event="Keepalive"}
+sum(rate(wg_peer_monitoring_errors_total[5m]))
+sum(increase(wg_peer_monitoring_notifications_total{result=~"failed|dropped"}[15m]))
+```
+
+### Verify the pipeline without a live peer
+
+With the service running, send a synthetic message (replace `wg0` with your configured interface). This writes peer `12` and may trigger your configured webhook:
+
+```bash
+python3 - <<'PY'
+import socket
+with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as sock:
+    sock.sendto(
+        b"wg0: Receiving handshake initiation from peer 12 (192.0.2.10:51820)",
+        ("127.0.0.1", 9999),
+    )
+PY
+
+curl --fail http://127.0.0.1:9998/metrics
+```
+
+If synthetic events work but live events do not, check kernel logging, rsyslog's input/filter, the interface name, and UDP routing. If startup fails, check config readability, Redis reachability, and port conflicts. Inspect application logs and the error/notification counters for runtime failures.
+
+## Testing and contributing
+
+```bash
+make dev
+make check       # formatting, imports, pylint, tests, coverage, Bandit, lockfile
+make format      # apply Black/isort formatting
+make build       # wheel and source distribution
+make docker-build
+```
+
+Tests use pytest, isolated Prometheus registries, HTTP mocks, and fakeredis with Lua support. They exercise parsing, IPv6, endpoint changes, configuration errors, retries, queue overflow, shutdown, and partial startup failures without external services. `make test` enforces **95% combined line/branch coverage** and writes `coverage.xml`.
+
+CI runs checks on Python 3.10 and the pinned development version and builds the runtime image. Published GitHub releases first run CI, scan an amd64 candidate with Trivy, then publish amd64/arm64 images with SBOM/provenance metadata. Fixable high/critical findings block publication. Configure the `DOCKER_PASSWORD` repository secret with a Docker Hub access token. Prereleases receive their release tag; only stable releases update `latest`. Actions are pinned to commit SHAs and updated by Dependabot.
+
+To support another event, add a compiled pattern and action callable to `monitoring/handler.py`'s `EVENTS`. Capture groups must provide peer ID, IP, and port; add behavior and error-path tests. Other kernel messages—sent packets, cookie responses, retransmissions, peer creation/destruction, invalid packets, and key rotation—are currently ignored.
+
+Open an issue with reproduction steps or submit a pull request describing the change and verification performed. Keep real configuration and credentials out of tests and commits.
+
+## License and support
+
+[MIT](LICENSE), copyright Arash Hatami.
+
+You can support development through [PayPing](https://payping.ir/@hatamiarash7), [Bitcoin](https://donatebadges.ir/donate/Bitcoin/bc1qmmh6vt366yzjt3grjxjjqynrrxs3frun8gnxrz), or [Ethereum](https://donatebadges.ir/donate/Ethereum/0x0831bD72Ea8904B38Be9D6185Da2f930d6078094).
