@@ -1,19 +1,30 @@
 {
-    "cSpell.words": [
-        "automerge",
-        "debugfs",
-        "DGRAM",
-        "hgetall",
-        "hmset",
-        "httpx",
-        "Keypair",
-        "kref",
-        "labelnames",
-        "netns",
-        "newlink",
-        "redisdata",
-        "rsyslog",
-        "syslogfacility",
-        "xmit"
-    ]
+  "cSpell.words": [
+    "addopts",
+    "appendonly",
+    "automerge",
+    "debugfs",
+    "DGRAM",
+    "fakeredis",
+    "hgetall",
+    "hmset",
+    "httpx",
+    "imklog",
+    "isort",
+    "Keypair",
+    "kref",
+    "labelnames",
+    "netns",
+    "newlink",
+    "omfwd",
+    "pipx",
+    "redisdata",
+    "rsyslog",
+    "sendto",
+    "syslogfacility",
+    "testpaths",
+    "xmit"
+  ],
+  "python-envs.defaultEnvManager": "ms-python.python:system",
+  "python-envs.defaultPackageManager": "ms-python.python:pip"
 }

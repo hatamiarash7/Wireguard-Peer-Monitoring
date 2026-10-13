@@ -1,39 +1,49 @@
-.PHONY: clean shell install dev lock update run build test lint vuln help
 .DEFAULT_GOAL := help
+POETRY ?= poetry
+IMAGE ?= wg-peer-monitoring:local
+.PHONY: help clean install dev lock update run build test lint format check security docker-build
 
-clean: ## Clean build files
-	@rm -rf dist
+install: ## Install locked runtime dependencies
+	$(POETRY) sync --only main
 
-shell: ## Activate venv
-	@poetry env activate
+dev: ## Install locked runtime and development dependencies
+	$(POETRY) sync --with dev,test
 
-install: ## Install dependencies
-	@poetry install
+lock: ## Resolve changed dependency constraints
+	$(POETRY) lock
 
-dev: ## Install dependencies - dev env
-	@poetry install --with=dev,test
+update: ## Update dependencies within their declared constraints
+	$(POETRY) update
 
-lock: ## Update poetry.lock
-	@poetry lock
+run: ## Run the monitor (set CONFIG_FILE for local configuration)
+	$(POETRY) run python -m monitoring
 
-update: ## Update dependencies
-	@poetry update
+build: ## Build wheel and source distribution
+	$(POETRY) build
 
-run: ## Run project
-	@poetry run python -m monitoring
+test: ## Run tests with branch coverage and a 95% minimum
+	$(POETRY) run pytest
 
-build: clean ## Build package
-	@poetry build
+lint: ## Check formatting, import order, and Python code
+	$(POETRY) run black --check monitoring tests
+	$(POETRY) run isort --check-only monitoring tests
+	$(POETRY) run pylint --rcfile=.pylintrc monitoring
 
-test: ## Run tests
-	@poetry run pytest
+format: ## Format Python code and imports
+	$(POETRY) run isort monitoring tests
+	$(POETRY) run black monitoring tests
 
-lint: ## Lint files
-	@find . -name "*.py" -not -ipath "./.venv/*" | xargs python3 -m pylint --rcfile=.pylintrc --ignore-patterns=test_.*?py
+security: ## Check runtime source for security issues
+	$(POETRY) run bandit -r monitoring -ll
 
-vuln: ## Check for vulnerabilities
-	@osv-scanner scan --lockfile poetry.lock
-	@bandit -r . --severity-level=high --exclude ./.venv,./.git
+check: lint test security ## Run local CI checks
+	$(POETRY) check --lock
 
-help: ## Show this help
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' Makefile | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-20s\033[0m %s\n", $$1, $$2}'
+docker-build: ## Build the local runtime image
+	docker build --tag $(IMAGE) .
+
+clean: ## Remove generated build and coverage reports
+	rm -rf build dist htmlcov .pytest_cache .coverage coverage.xml
+
+help: ## Show available commands
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' Makefile | sort | awk 'BEGIN {FS = ":.*?## "}; {printf "%-20s %s\n", $$1, $$2}'
